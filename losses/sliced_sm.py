@@ -4,6 +4,14 @@ import numpy as np
 
 
 def single_sliced_score_matching(energy_net, samples, noise=None, detach=False, noise_type='radermacher'):
+    '''
+    Sliced Score Matching (SSM):
+
+    SSM 是一种通过“切片”的方式来简化高维数据分布分数估计的方法。它通过将高维数据投影到一维或低维空间，然后在这些低维空间中进行分数匹配。
+    SSM 的关键在于使用了一系列随机投影，通过对这些投影方向上的分数进行匹配，来逼近整体的分数。
+    与直接在高维空间中进行匹配的方法相比，SSM 可以在计算上更为高效，因为它将复杂的高维问题分解为多个简单的低维问题。
+    sliced_score_matching 做完后，得到的就是数据集的score，而不像 denoising score matching得到的是加噪数据集上的score（噪声比较小的时候，才近似看做是原数据的score）
+    '''
     samples.requires_grad_(True)
     if noise is None:
         vectors = torch.randn_like(samples)
@@ -19,7 +27,7 @@ def single_sliced_score_matching(energy_net, samples, noise=None, detach=False, 
         vectors = noise
 
     logp = -energy_net(samples).sum()
-    grad1 = autograd.grad(logp, samples, create_graph=True)[0]
+    grad1 = autograd.grad(logp, samples, create_graph=True)[0] # grad1 即paper中的 s_θ(x) = \nabla_x log p(x)。上一行的 logp就是 log p(x), 这行对他取导数。
     gradv = torch.sum(grad1 * vectors)
     loss1 = torch.sum(grad1 * vectors, dim=-1) ** 2 * 0.5
     if detach:
@@ -143,6 +151,10 @@ def sliced_score_estimation_vr(score_net, samples, n_particles=1):
 
 
 def anneal_sliced_score_estimation_vr(scorenet, samples, labels, sigmas, n_particles=1):
+    '''
+    该代码对应的paper《Generative Modeling by Estimating Gradients of the Data Distribution》中所，为了做到该文的效果，不拘非得denoising score matching,
+    用 sliced score matching 也行。但是不能用原版 sliced score matching，要用加不同level 的噪声版的。具体怎么做，就在于本函数。
+    '''
     used_sigmas = sigmas[labels].view(samples.shape[0], *([1] * len(samples.shape[1:])))
     perturbed_samples = samples + torch.randn_like(samples) * used_sigmas
     dup_samples = perturbed_samples.unsqueeze(0).expand(n_particles, *samples.shape).contiguous().view(-1,
