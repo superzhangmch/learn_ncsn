@@ -157,9 +157,12 @@ def anneal_sliced_score_estimation_vr(scorenet, samples, labels, sigmas, n_parti
     '''
     used_sigmas = sigmas[labels].view(samples.shape[0], *([1] * len(samples.shape[1:])))
     perturbed_samples = samples + torch.randn_like(samples) * used_sigmas
-    dup_samples = perturbed_samples.unsqueeze(0).expand(n_particles, *samples.shape).contiguous().view(-1,
-                                                                                                       *samples.shape[
-                                                                                                        1:])
+    dup_samples = perturbed_samples.unsqueeze(0).expand(n_particles, *samples.shape).contiguous().view(-1, *samples.shape[1:])
+    '''
+    上面这行代码的作用是将 perturbed_samples 扩展为 n_particles 份，从而在第一个维度上进行复制，并最终将其形状调整为适合后续计算的形式。
+    也就是 shape: [batch, ...]=>[batch*n_particles, ...], 每个数据复制出多份。
+    这样做的目的是在进行随机投影和梯度计算时，为每个样本提供多个扰动版本，以增强估计的稳定性和精度。
+    '''
     dup_labels = labels.unsqueeze(0).expand(n_particles, *labels.shape).contiguous().view(-1)
     dup_samples.requires_grad_(True)
 
