@@ -162,6 +162,7 @@ def anneal_sliced_score_estimation_vr(scorenet, samples, labels, sigmas, n_parti
     上面这行代码的作用是将 perturbed_samples 扩展为 n_particles 份，从而在第一个维度上进行复制，并最终将其形状调整为适合后续计算的形式。
     也就是 shape: [batch, ...]=>[batch*n_particles, ...], 每个数据复制出多份。
     这样做的目的是在进行随机投影和梯度计算时，为每个样本提供多个扰动版本，以增强估计的稳定性和精度。
+    按paper中所说，n_particles=1（原文中是M=1），已经效果足够好了。
     '''
     dup_labels = labels.unsqueeze(0).expand(n_particles, *labels.shape).contiguous().view(-1)
     dup_samples.requires_grad_(True)
